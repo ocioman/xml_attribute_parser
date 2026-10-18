@@ -61,11 +61,17 @@ void XMLParser::parse(std::istream &is, std::unordered_map<std::string, std::str
 
     if (c=='<') {
         if (is.peek()=='/')
-            throw ParseException("Exception: unexpected tag ending");
+            throw ParseException("Exception: unexpected closing tag");
 
         while (is.peek()!='/') {
             is.putback(c);
             parse(is, uMap);
+
+            std::ws(is);
+
+            if (is.eof())
+                throw ParseException("Exception: missing closing tag\n");
+
             c=static_cast<char>(is.get());
         }
 
