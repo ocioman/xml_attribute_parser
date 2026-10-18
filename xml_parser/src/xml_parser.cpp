@@ -6,18 +6,6 @@
 #include <istream>
 #include <sstream>
 
-void XMLParser::content(std::istream &is, std::unordered_map<std::string, std::string>& uMap){
-    std::ws(is);
-    is.get(); // consumo '<'
-    if (is.peek() != '/') {
-        is.putback('<'); // non è un closing tag, rimetto '<' e parso il fratello
-        parse(is, uMap); // consumo il tag (se non c'è un annidamento tiro fuori il contenuto e mi metto all'inizio del prossimo possibile fratello)
-        content(is, uMap); // continuo a cercare altri fratelli -> se la chiamata ritorna, ho trovato il tag del padre
-    } else { //tag di chiusura che verrà consumato dalla chiamata di tag che ha chiamato content
-        is.putback('<'); // rimetto '<'
-    }
-}
-
 void XMLParser::attributes(std::istream &is, std::unordered_map<std::string, std::string> &uMap) {
     std::string key;
     std::string val;
@@ -66,11 +54,22 @@ void XMLParser::parse(std::istream &is, std::unordered_map<std::string, std::str
         std::getline(tagStream, openingTagName, '>');
 
     std::ws(is);
-    if (is.peek()=='<') {
-        parse(is, uMap);
-        content(is, uMap);
-        is.get(); // consuma < (rimesso da putback)
-        is.get(); // consuma /
+
+    char c;
+
+    c=static_cast<char>(is.get());
+
+    if (c=='<') {
+        if (is.peek()=='/')
+            throw ParseException("Exception: unexpected tag ending");
+
+        while (is.peek()!='/') {
+            is.putback(c);
+            parse(is, uMap);
+            c=static_cast<char>(is.get());
+        }
+
+        is.get(); // "/"
     }else {
         std::string contained;
         std::ws(is);
@@ -79,8 +78,8 @@ void XMLParser::parse(std::istream &is, std::unordered_map<std::string, std::str
     }
 
     std::string closingTagName;
-    std::getline(is, closingTagName, '>'); //lo stato della stream si trova dopo la fine del tag di chisurua
+    std::getline(is, closingTagName, '>'); //lo stato della stream si trova dopo la fine del tag di chiusura
 
     if (openingTagName!=closingTagName)
-        throw ParseException("Exception:\nOpening Tag Name: "+openingTagName+"\nIs Different From Closing Tag Name: "+closingTagName+"\n");
+        throw ParseException("Exception: opening tag name: "+openingTagName+" is different from closing tag name: "+closingTagName+"\n");
 }
